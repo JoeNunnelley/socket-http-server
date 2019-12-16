@@ -1,8 +1,12 @@
+"""
+Basic HTTP File Server
+"""
 import mimetypes
 import os
 import socket
 import sys
 import traceback
+
 
 def response_ok(body=b"This is a minimal response", mimetype=b"text/plain"):
     """
@@ -63,8 +67,8 @@ def parse_request(request):
     if method != 'GET':
         print("{} received".format(method))
         raise NotImplementedError
-    else:
-        print('GET received')
+
+    print('GET received')
 
     return uri
 
@@ -96,29 +100,29 @@ def response_path(_path):
         response_path('/a_page_that_doesnt_exist.html') -> Raises a NameError
 
     """
-    web_path = os.path.join(os.getcwd(), 'webroot', _path.lstrip('/'))
+    webpath = os.path.join(os.getcwd(), 'webroot', _path.lstrip('/'))
 
-    if(os.path.exists(web_path)):
-        if(os.path.isdir(web_path)):
-            mime_type = b'text/plain'
-            contents = str(os.listdir(web_path)).encode('utf-8')
+    if os.path.exists(webpath):
+        if os.path.isdir(webpath):
+            mime = b'text/plain'
+            contents = str(os.listdir(webpath)).encode('utf-8')
         else:
-            mime_type = mimetypes.MimeTypes().guess_type(web_path)[0].encode('utf-8')
-            if(mime_type == b'text/plain'):
-                with open(web_path, 'r') as file:
+            mime = mimetypes.MimeTypes().guess_type(webpath)[0].encode('utf-8')
+            if mime == b'text/plain':
+                with open(webpath, 'r') as file:
                     contents = file.read().encode('utf-8')
             else:
-                with open(web_path, 'rb') as file:
+                with open(webpath, 'rb') as file:
                     contents = file.read()
     else:
-        print('path not found {}'.format(web_path))
+        print('path not found {}'.format(webpath))
         raise NameError
 
     # If the path is "make_time.py", then you may OPTIONALLY return the
     # result of executing `make_time.py`. But you need only return the
     # CONTENTS of `make_time.py`.
 
-    return contents, mime_type
+    return contents, mime
 
 
 def server(log_buffer=sys.stderr):
@@ -130,6 +134,7 @@ def server(log_buffer=sys.stderr):
     sock.bind(address)
     sock.listen(1)
 
+    # pylint: disable=too-many-nested-blocks
     try:
         while True:
             print('waiting for a connection', file=log_buffer)
@@ -145,7 +150,6 @@ def server(log_buffer=sys.stderr):
                     if '\r\n\r\n' in request:
                         break
 
-
                 print("Request received:\n{}\n\n".format(request))
 
                 contents = b''
@@ -155,8 +159,8 @@ def server(log_buffer=sys.stderr):
                     path = parse_request(request)
                     contents, mime_type = response_path(path)
                     response = response_ok(
-                        body = contents,
-                        mimetype = mime_type
+                        body=contents,
+                        mimetype=mime_type
                     )
                 except NotImplementedError:
                     response = response_method_not_allowed()
@@ -164,7 +168,7 @@ def server(log_buffer=sys.stderr):
                     response = response_not_found()
 
                 conn.sendall(response)
-            except:
+            except ConnectionError:
                 traceback.print_exc()
             finally:
                 conn.close()
@@ -172,12 +176,11 @@ def server(log_buffer=sys.stderr):
     except KeyboardInterrupt:
         sock.close()
         return
-    except:
+    except RuntimeError:
         traceback.print_exc()
+    # pylint: enable=too-many-nested-blocks
 
 
 if __name__ == '__main__':
     server()
     sys.exit(0)
-
-
